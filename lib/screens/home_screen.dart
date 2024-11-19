@@ -21,9 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
     const ProfileScreen(),
     const ChatScreen(),
     const ChatHistoryScreen(),
-    QrCodeScreen(),
-    LocationScreen(),
-    SensorsScreen(),
+    //QrCodeScreen(),
+    //LocationScreen(),
+    //SensorsScreen(),
   ];
 
   @override
@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(Icons.history_outlined),
                   label: 'Historial',
                 ),
-                BottomNavigationBarItem(
+                /*BottomNavigationBarItem(
                   icon: Icon(Icons.qr_code),
                   label: 'QR',
                 ),
@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.sensor_window_outlined),
                   label: 'Sensores',
-                ),
+                ),*/
               ],
             ));
       },

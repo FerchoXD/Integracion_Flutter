@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:logger/logger.dart';
 import 'package:http/http.dart' as http;
 
 class AssistantMessageWidget extends StatefulWidget {
@@ -21,14 +22,16 @@ class AssistantMessageWidget extends StatefulWidget {
 
 class _AssistantMessageWidgetState extends State<AssistantMessageWidget> {
   final FlutterSoundPlayer _audioPlayer = FlutterSoundPlayer();
-  String apiKey = "AIzaSyCL8kAToRhMewFqUEOdw0QhRw3rhrmATCw"; 
-  bool _isPlaying = false; // Estado para saber si está reproduciendo
+  String apiKey = "AIzaSyCL8kAToRhMewFqUEOdw0QhRw3rhrmATCw";
+  bool _isPlaying = false;
+  bool _hasPlayedAudio = false; // Nueva bandera para evitar múltiples reproducciones
+  final msg = Logger();
 
   @override
   void initState() {
     super.initState();
     _requestPermissions();
-    _audioPlayer.openPlayer(); // Abrimos el reproductor en initState
+    _audioPlayer.openPlayer();
   }
 
   Future<void> _requestPermissions() async {
@@ -36,7 +39,10 @@ class _AssistantMessageWidgetState extends State<AssistantMessageWidget> {
   }
 
   Future<void> _speak(String text) async {
-    if (text.isEmpty) return;
+    if (_hasPlayedAudio || text.isEmpty) return; // Evita múltiples ejecuciones
+    _hasPlayedAudio = true; // Marca que ya se ejecutó
+
+    msg.w('Text to speech: $text');
 
     final url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=$apiKey';
 
@@ -48,9 +54,9 @@ class _AssistantMessageWidgetState extends State<AssistantMessageWidget> {
       body: jsonEncode({
         'input': {'text': text},
         'voice': {
-          'languageCode': 'es-ES',
-          'name': 'es-ES-Wavenet-B',
-          'ssmlGender': 'MALE'
+          'languageCode': 'en-US',
+          'name': 'en-US-Wavenet-D',
+          'ssmlGender': 'MALE',
         },
         'audioConfig': {
           'audioEncoding': 'MP3',
@@ -72,36 +78,60 @@ class _AssistantMessageWidgetState extends State<AssistantMessageWidget> {
   }
 
   Future<void> _playAudio(String path) async {
-    await _audioPlayer.startPlayer(
-      fromURI: path,
-      codec: Codec.mp3,
-      whenFinished: () {
-        setState(() {
-          _isPlaying = false; // Actualizamos el estado al finalizar
-        });
-        print("Reproducción finalizada");
-      },
-    );
-    setState(() {
-      _isPlaying = true; // Actualizamos el estado al iniciar
-    });
+    if (_audioPlayer.isPlaying) return; // Evita iniciar si ya está reproduciendo
+
+    try {
+      await _audioPlayer.startPlayer(
+        fromURI: path,
+        codec: Codec.mp3,
+        whenFinished: () {
+          setState(() {
+            _isPlaying = false;
+          });
+          print("Reproducción finalizada");
+        },
+      );
+      setState(() {
+        _isPlaying = true;
+      });
+    } catch (e) {
+      print("Error al reproducir audio: $e");
+    }
   }
 
   Future<void> _stopAudio() async {
-    await _audioPlayer.stopPlayer(); // Detenemos el reproductor
-    setState(() {
-      _isPlaying = false; // Actualizamos el estado al detener
-    });
+    if (_audioPlayer.isPlaying) {
+      await _audioPlayer.stopPlayer();
+      setState(() {
+        _isPlaying = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _audioPlayer.closePlayer(); // Cerramos el reproductor después de matar al widget
+    _audioPlayer.closePlayer();
     super.dispose();
+  }
+
+  Future<void> _waitAndSpeak() async {
+    // Espera hasta que el mensaje esté completo o tenga sentido enviarlo.
+    await Future.delayed(const Duration(milliseconds: 7000)); // Ajusta el tiempo según sea necesario.
+
+    if (widget.message.isNotEmpty && !_hasPlayedAudio) {
+      _speak(widget.message); // Llama a _speak solo una vez.
+      setState(() {
+        _hasPlayedAudio = true;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.message.isNotEmpty && !_hasPlayedAudio) {
+      _waitAndSpeak(); // Llama a _speak solo una vez
+    }
+
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -130,16 +160,16 @@ class _AssistantMessageWidgetState extends State<AssistantMessageWidget> {
                       data: widget.message,
                     ),
                   ),
-                  if (!_isPlaying) 
+                  if (!_isPlaying)
                     IconButton(
                       icon: const Icon(Icons.volume_up),
                       onPressed: () => _speak(widget.message),
                       tooltip: 'Hablar',
                     ),
-                  if (_isPlaying) 
+                  if (_isPlaying)
                     IconButton(
                       icon: const Icon(Icons.stop),
-                      onPressed: _stopAudio, // Llama al método para detener
+                      onPressed: _stopAudio,
                       tooltip: 'Detener',
                     ),
                 ],

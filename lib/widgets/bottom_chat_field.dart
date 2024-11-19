@@ -76,7 +76,7 @@ class _BottomChatFieldState extends State<BottomChatField> {
       _connectionStatus = results;
       _isConnected = results.any((result) => result != ConnectivityResult.none);
     });
-    print('Connectivity changed: $_connectionStatus');
+    //print('Connectivity changed: $_connectionStatus');
   }
 
   Future<void> _checkMicrophonePermission() async {
